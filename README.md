@@ -28,10 +28,10 @@ devserver {
 Then run `./gradlew setupServer` again so the server config is regenerated.
 
 ### 3. Manual checklist (once connected)
-- Run `/hygrip test` for default crane at (0,0,0) facing east (source 1,0,0 → target -1,0,0).
+- Run `/hygrip test` for default crane at (0,117,0) facing east (source 1,117,0 → target -1,117,0).
 - Or `/hygrip test <baseX> <baseY> <baseZ>` for that base facing east.
 - Or `/hygrip test <baseX> <baseY> <baseZ> <direction>` — direction: `north`, `south`, `east`, `west`, `up`, `down`. Source = base + 1 block, target = base - 1 block in that direction.
-- Or `/hygrip test <direction>` for base (0,0,0) and that direction (e.g. `/hygrip test north`).
+- Or `/hygrip test <direction>` for base (0,117,0) and that direction (e.g. `/hygrip test north`).
 - Place blocks with inventories at source and target.
 - Confirm the arm moves and items transfer between them.
 

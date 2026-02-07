@@ -20,7 +20,8 @@ import java.util.concurrent.CompletableFuture;
 /**
  * Test command: /hygrip test [baseX baseY baseZ] [direction]
  * Creates a crane at base; source = base + 1 block in direction, target = base - 1 block.
- * Direction: north, south, east, west, up, down. Default: base (0,0,0), direction east.
+ * Direction: north, south, east, west, up, down. Default: base (0,117,0), direction east.
+ * When invoked as subcommand, token 0 is "test"; our args start at index 1.
  */
 public class HyGripTestCommand extends AbstractCommand {
 
@@ -59,31 +60,37 @@ public class HyGripTestCommand extends AbstractCommand {
             return CompletableFuture.completedFuture(null);
         }
 
-        int baseX = 0, baseY = 0, baseZ = 0;
+        int baseX = 0, baseY = 117, baseZ = 0;
         CraneDirection direction = CraneDirection.EAST;
 
         ParserContext parserContext = getParserContext(context);
         if (parserContext != null) {
             int numTokens = parserContext.getNumPreOptionalTokens();
-            if (numTokens >= 1) {
+            // When invoked as subcommand, token 0 is "test"; our args start at 1. If token 0 is already a number, use 0.
+            int offset = 0;
+            if (numTokens >= 1 && "test".equalsIgnoreCase(parserContext.getPreOptionalSingleValueToken(0))) {
+                offset = 1;
+            }
+            int available = numTokens - offset;
+            if (available >= 1) {
                 try {
-                    if (numTokens >= 4) {
-                        baseX = Integer.parseInt(parserContext.getPreOptionalSingleValueToken(0));
-                        baseY = Integer.parseInt(parserContext.getPreOptionalSingleValueToken(1));
-                        baseZ = Integer.parseInt(parserContext.getPreOptionalSingleValueToken(2));
-                        String dirStr = parserContext.getPreOptionalSingleValueToken(3).trim().toLowerCase(Locale.ROOT);
+                    if (available >= 4) {
+                        baseX = Integer.parseInt(parserContext.getPreOptionalSingleValueToken(offset + 0));
+                        baseY = Integer.parseInt(parserContext.getPreOptionalSingleValueToken(offset + 1));
+                        baseZ = Integer.parseInt(parserContext.getPreOptionalSingleValueToken(offset + 2));
+                        String dirStr = parserContext.getPreOptionalSingleValueToken(offset + 3).trim().toLowerCase(Locale.ROOT);
                         CraneDirection parsed = CraneDirection.byName(dirStr);
                         if (parsed == null) {
                             context.sendMessage(Message.raw("Unknown direction: " + dirStr + ". " + USAGE));
                             return CompletableFuture.completedFuture(null);
                         }
                         direction = parsed;
-                    } else if (numTokens == 3) {
-                        baseX = Integer.parseInt(parserContext.getPreOptionalSingleValueToken(0));
-                        baseY = Integer.parseInt(parserContext.getPreOptionalSingleValueToken(1));
-                        baseZ = Integer.parseInt(parserContext.getPreOptionalSingleValueToken(2));
-                    } else if (numTokens == 1) {
-                        String dirStr = parserContext.getPreOptionalSingleValueToken(0).trim().toLowerCase(Locale.ROOT);
+                    } else if (available >= 3) {
+                        baseX = Integer.parseInt(parserContext.getPreOptionalSingleValueToken(offset + 0));
+                        baseY = Integer.parseInt(parserContext.getPreOptionalSingleValueToken(offset + 1));
+                        baseZ = Integer.parseInt(parserContext.getPreOptionalSingleValueToken(offset + 2));
+                    } else if (available >= 1) {
+                        String dirStr = parserContext.getPreOptionalSingleValueToken(offset + 0).trim().toLowerCase(Locale.ROOT);
                         CraneDirection parsed = CraneDirection.byName(dirStr);
                         if (parsed != null) direction = parsed;
                     }
