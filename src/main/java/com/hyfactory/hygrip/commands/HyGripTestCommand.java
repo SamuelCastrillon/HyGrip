@@ -37,6 +37,8 @@ public class HyGripTestCommand extends AbstractCommand {
     }
 
     @Nullable
+
+    
     @Override
     protected CompletableFuture<Void> execute(@Nonnull CommandContext context) {
         if (!context.isPlayer()) {
@@ -65,41 +67,32 @@ public class HyGripTestCommand extends AbstractCommand {
         int baseX = 0, baseY = 117, baseZ = 0;
         CraneDirection direction = CraneDirection.EAST;
 
-        ParserContext parserContext = getParserContext(context);
-        if (parserContext != null) {
-            int numTokens = parserContext.getNumPreOptionalTokens();
-            // When invoked as subcommand, token 0 is "test"; our args start at 1. If token 0 is already a number, use 0.
-            int offset = 0;
-            if (numTokens >= 1 && "test".equalsIgnoreCase(parserContext.getPreOptionalSingleValueToken(0))) {
-                offset = 1;
-            }
-            int available = numTokens - offset;
-            if (available >= 1) {
-                try {
-                    if (available >= 4) {
-                        baseX = Integer.parseInt(parserContext.getPreOptionalSingleValueToken(offset + 0));
-                        baseY = Integer.parseInt(parserContext.getPreOptionalSingleValueToken(offset + 1));
-                        baseZ = Integer.parseInt(parserContext.getPreOptionalSingleValueToken(offset + 2));
-                        String dirStr = parserContext.getPreOptionalSingleValueToken(offset + 3).trim().toLowerCase(Locale.ROOT);
-                        CraneDirection parsed = CraneDirection.byName(dirStr);
-                        if (parsed == null) {
-                            context.sendMessage(Message.raw("Unknown direction: " + dirStr + ". " + USAGE));
-                            return CompletableFuture.completedFuture(null);
-                        }
-                        direction = parsed;
-                    } else if (available >= 3) {
-                        baseX = Integer.parseInt(parserContext.getPreOptionalSingleValueToken(offset + 0));
-                        baseY = Integer.parseInt(parserContext.getPreOptionalSingleValueToken(offset + 1));
-                        baseZ = Integer.parseInt(parserContext.getPreOptionalSingleValueToken(offset + 2));
-                    } else if (available >= 1) {
-                        String dirStr = parserContext.getPreOptionalSingleValueToken(offset + 0).trim().toLowerCase(Locale.ROOT);
-                        CraneDirection parsed = CraneDirection.byName(dirStr);
-                        if (parsed != null) direction = parsed;
+        String[] args = getArgsFromContext(context);
+        if (args != null && args.length >= 1) {
+            try {
+                if (args.length >= 4) {
+                    baseX = Integer.parseInt(args[0]);
+                    baseY = Integer.parseInt(args[1]);
+                    baseZ = Integer.parseInt(args[2]);
+                    String dirStr = args[3].trim().toLowerCase(Locale.ROOT);
+                    CraneDirection parsed = CraneDirection.byName(dirStr);
+                    if (parsed == null) {
+                        context.sendMessage(Message.raw("Unknown direction: " + dirStr + ". " + USAGE));
+                        return CompletableFuture.completedFuture(null);
                     }
-                } catch (NumberFormatException e) {
-                    context.sendMessage(Message.raw("Invalid number in coordinates. " + USAGE));
-                    return CompletableFuture.completedFuture(null);
+                    direction = parsed;
+                } else if (args.length >= 3) {
+                    baseX = Integer.parseInt(args[0]);
+                    baseY = Integer.parseInt(args[1]);
+                    baseZ = Integer.parseInt(args[2]);
+                } else if (args.length >= 1) {
+                    String dirStr = args[0].trim().toLowerCase(Locale.ROOT);
+                    CraneDirection parsed = CraneDirection.byName(dirStr);
+                    if (parsed != null) direction = parsed;
                 }
+            } catch (NumberFormatException e) {
+                context.sendMessage(Message.raw("Invalid number in coordinates. " + USAGE));
+                return CompletableFuture.completedFuture(null);
             }
         }
 
@@ -126,9 +119,36 @@ public class HyGripTestCommand extends AbstractCommand {
         return CompletableFuture.completedFuture(null);
     }
 
-    /** Obtain ParserContext from CommandContext via reflection (API may not expose it publicly). */
+    /**
+     * Get our command args (base coords + direction) from context.
+     * Tries ParserContext first; if not available, parses the input string (CommandContext is built with getInputString()).
+     */
     @Nullable
-    private static ParserContext getParserContext(@Nonnull CommandContext context) {
+    private static String[] getArgsFromContext(@Nonnull CommandContext context) {
+        ParserContext parserContext = getParserContextViaReflection(context);
+        if (parserContext != null) {
+            int numTokens = parserContext.getNumPreOptionalTokens();
+            int offset = (numTokens >= 1 && "test".equalsIgnoreCase(parserContext.getPreOptionalSingleValueToken(0))) ? 1 : 0;
+            int available = numTokens - offset;
+            if (available <= 0) return null;
+            String[] out = new String[available];
+            for (int i = 0; i < available; i++) {
+                out[i] = parserContext.getPreOptionalSingleValueToken(offset + i);
+            }
+            return out;
+        }
+        String input = getInputStringViaReflection(context);
+        if (input == null || input.isBlank()) return null;
+        String[] tokens = input.trim().split("\\s+");
+        if (tokens.length < 2 || !"test".equalsIgnoreCase(tokens[1])) return null;
+        if (tokens.length <= 2) return null;
+        String[] args = new String[tokens.length - 2];
+        System.arraycopy(tokens, 2, args, 0, args.length);
+        return args;
+    }
+
+    @Nullable
+    private static ParserContext getParserContextViaReflection(@Nonnull CommandContext context) {
         try {
             Method m = context.getClass().getMethod("getParserContext");
             Object result = m.invoke(context);
@@ -136,6 +156,18 @@ public class HyGripTestCommand extends AbstractCommand {
         } catch (Exception ignored) {
             return null;
         }
+    }
+
+    @Nullable
+    private static String getInputStringViaReflection(@Nonnull CommandContext context) {
+        for (String methodName : new String[] { "getInputString", "getCommand", "getRawInput", "getInput" }) {
+            try {
+                Method m = context.getClass().getMethod(methodName);
+                Object result = m.invoke(context);
+                if (result instanceof String s && !s.isBlank()) return s;
+            } catch (Exception ignored) { }
+        }
+        return null;
     }
 
     /** Cardinal + vertical direction; unit vector (dx, dy, dz) toward that direction. */
