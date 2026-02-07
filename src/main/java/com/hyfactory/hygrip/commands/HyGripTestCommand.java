@@ -5,26 +5,31 @@ import com.hyfactory.hygrip.plugin.HyGripPlugin;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.command.system.AbstractCommand;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
+import com.hypixel.hytale.server.core.command.system.ParserContext;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.universe.Universe;
 import com.hypixel.hytale.server.core.universe.world.World;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import java.lang.reflect.Method;
+import java.util.Locale;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * Test command: /hygrip test — creates a test crane at (0,0,0) with job
- * source (1,0,0) and target (-1,0,0), stores it in the plugin and runs
- * runCraneTick every tick so items move between inventory blocks at those coords.
+ * Test command: /hygrip test [baseX baseY baseZ] [direction]
+ * Creates a crane at base; source = base + 1 block in direction, target = base - 1 block.
+ * Direction: north, south, east, west, up, down. Default: base (0,0,0), direction east.
  */
 public class HyGripTestCommand extends AbstractCommand {
+
+    private static final String USAGE = "Usage: /hygrip test [baseX baseY baseZ] [direction]. Direction: north, south, east, west, up, down.";
 
     private final HyGripPlugin plugin;
 
     public HyGripTestCommand(@Nonnull HyGripPlugin plugin) {
-        super("test", "Starts a test crane: base (0,0,0), source (1,0,0), target (-1,0,0). Place inventory blocks there.");
+        super("test", "Starts a test crane at base looking in direction (source = base+1, target = base-1). Optional: base coords and direction.");
         this.plugin = plugin;
     }
 
@@ -54,14 +59,109 @@ public class HyGripTestCommand extends AbstractCommand {
             return CompletableFuture.completedFuture(null);
         }
 
+        int baseX = 0, baseY = 0, baseZ = 0;
+        CraneDirection direction = CraneDirection.EAST;
+
+        ParserContext parserContext = getParserContext(context);
+        if (parserContext != null) {
+            int numTokens = parserContext.getNumPreOptionalTokens();
+            if (numTokens >= 1) {
+                try {
+                    if (numTokens >= 4) {
+                        baseX = Integer.parseInt(parserContext.getPreOptionalSingleValueToken(0));
+                        baseY = Integer.parseInt(parserContext.getPreOptionalSingleValueToken(1));
+                        baseZ = Integer.parseInt(parserContext.getPreOptionalSingleValueToken(2));
+                        String dirStr = parserContext.getPreOptionalSingleValueToken(3).trim().toLowerCase(Locale.ROOT);
+                        CraneDirection parsed = CraneDirection.byName(dirStr);
+                        if (parsed == null) {
+                            context.sendMessage(Message.raw("Unknown direction: " + dirStr + ". " + USAGE));
+                            return CompletableFuture.completedFuture(null);
+                        }
+                        direction = parsed;
+                    } else if (numTokens == 3) {
+                        baseX = Integer.parseInt(parserContext.getPreOptionalSingleValueToken(0));
+                        baseY = Integer.parseInt(parserContext.getPreOptionalSingleValueToken(1));
+                        baseZ = Integer.parseInt(parserContext.getPreOptionalSingleValueToken(2));
+                    } else if (numTokens == 1) {
+                        String dirStr = parserContext.getPreOptionalSingleValueToken(0).trim().toLowerCase(Locale.ROOT);
+                        CraneDirection parsed = CraneDirection.byName(dirStr);
+                        if (parsed != null) direction = parsed;
+                    }
+                } catch (NumberFormatException e) {
+                    context.sendMessage(Message.raw("Invalid number in coordinates. " + USAGE));
+                    return CompletableFuture.completedFuture(null);
+                }
+            }
+        }
+
+        int dx = direction.dx;
+        int dy = direction.dy;
+        int dz = direction.dz;
+        int sourceX = baseX + dx;
+        int sourceY = baseY + dy;
+        int sourceZ = baseZ + dz;
+        int targetX = baseX - dx;
+        int targetY = baseY - dy;
+        int targetZ = baseZ - dz;
+
         CraneStateComponent state = new CraneStateComponent();
-        state.setBaseX(0);
-        state.setBaseY(0);
-        state.setBaseZ(0);
-        state.setJob(1, 0, 0, -1, 0, 0);
+        state.setBaseX(baseX);
+        state.setBaseY(baseY);
+        state.setBaseZ(baseZ);
+        state.setJob(sourceX, sourceY, sourceZ, targetX, targetY, targetZ);
 
         plugin.addTestCrane(world, state);
-        context.sendMessage(Message.raw("HyGrip test crane started at (0,0,0): source (1,0,0) -> target (-1,0,0). Place inventory blocks there to see items move."));
+        context.sendMessage(Message.raw(String.format(
+                "HyGrip test crane at (%d,%d,%d) facing %s: source (%d,%d,%d) -> target (%d,%d,%d). Place inventory blocks there.",
+                baseX, baseY, baseZ, direction.name, sourceX, sourceY, sourceZ, targetX, targetY, targetZ)));
         return CompletableFuture.completedFuture(null);
+    }
+
+    /** Obtain ParserContext from CommandContext via reflection (API may not expose it publicly). */
+    @Nullable
+    private static ParserContext getParserContext(@Nonnull CommandContext context) {
+        try {
+            Method m = context.getClass().getMethod("getParserContext");
+            Object result = m.invoke(context);
+            return result instanceof ParserContext ? (ParserContext) result : null;
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    /** Cardinal + vertical direction; unit vector (dx, dy, dz) toward that direction. */
+    private enum CraneDirection {
+        NORTH("north", 0, 0, -1),
+        SOUTH("south", 0, 0, 1),
+        EAST("east", 1, 0, 0),
+        WEST("west", -1, 0, 0),
+        UP("up", 0, 1, 0),
+        DOWN("down", 0, -1, 0);
+
+        final String name;
+        final int dx;
+        final int dy;
+        final int dz;
+
+        CraneDirection(String name, int dx, int dy, int dz) {
+            this.name = name;
+            this.dx = dx;
+            this.dy = dy;
+            this.dz = dz;
+        }
+
+        @Nullable
+        static CraneDirection byName(String s) {
+            if (s == null || s.isEmpty()) return null;
+            switch (s) {
+                case "north": return NORTH;
+                case "south": return SOUTH;
+                case "east": return EAST;
+                case "west": return WEST;
+                case "up": return UP;
+                case "down": return DOWN;
+                default: return null;
+            }
+        }
     }
 }
