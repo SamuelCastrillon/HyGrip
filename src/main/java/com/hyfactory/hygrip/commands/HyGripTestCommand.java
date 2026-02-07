@@ -32,6 +32,8 @@ public class HyGripTestCommand extends AbstractCommand {
     public HyGripTestCommand(@Nonnull HyGripPlugin plugin) {
         super("test", "Starts a test crane at base looking in direction (source = base+1, target = base-1). Optional: base coords and direction.");
         this.plugin = plugin;
+        // Allow 0 to 4 optional positional args without declaring them (AbstractCommand.setAllowsExtraArguments).
+        setAllowsExtraArguments(true);
     }
 
     @Nullable
