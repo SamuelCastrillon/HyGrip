@@ -6,10 +6,12 @@ import java.io.File
 
 repositories {
     // Any external repositories besides: MavenLocal, MavenCentral, HytaleMaven, and CurseMaven
+    mavenCentral()
 }
 
 dependencies {
     // Any external dependency you also want to include
+    testImplementation("org.junit.jupiter:junit-jupiter:5.10.1")
 }
 
 // Fix runServer when project path contains spaces: use a junction (Windows) so --mods has no spaces.

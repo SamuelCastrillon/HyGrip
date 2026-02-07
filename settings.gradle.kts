@@ -11,7 +11,6 @@ plugins {
 hytale {
     usePatchline("release")
     useVersion("latest")
-
     repositories {
         // Any external repositories besides: MavenLocal, MavenCentral, HytaleMaven, and CurseMaven
     }

@@ -9,6 +9,11 @@ import com.hypixel.hytale.server.core.plugin.JavaPluginInit;
 import com.hypixel.hytale.server.core.universe.world.World;
 
 import javax.annotation.Nonnull;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executors;
@@ -30,7 +35,25 @@ public class HyGripPlugin extends JavaPlugin {
 
     @Override
     protected void setup() {
+        // To connect from the Hytale client: (1) Add server 127.0.0.1:5520 in-game.
+        // (2) In server console run /auth login browser (server auth). (3) Run /auth login device,
+        // open the URL in browser and authorize this device; then join from Favorites.
+        // #region agent log
+        try {
+            String logPath = "c:\\Desarrollo\\004 Games\\001 HytaleMods\\00 HyFactory\\HyGrip\\.cursor\\debug.log";
+            String cwd = System.getProperty("user.dir", "");
+            String line = "{\"timestamp\":" + System.currentTimeMillis() + ",\"location\":\"HyGripPlugin.java:setup\",\"message\":\"Plugin setup started\",\"data\":{\"cwd\":\"" + cwd.replace("\\", "\\\\") + "\",\"thread\":\"" + Thread.currentThread().getName() + "\"},\"sessionId\":\"debug-session\",\"hypothesisId\":\"H1,H3,H4\"}\n";
+            Files.write(Paths.get(logPath), line.getBytes(StandardCharsets.UTF_8), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+        } catch (Throwable t) { /* ignore */ }
+        // #endregion
         getCommandRegistry().registerCommand(new HyGripCommand(this));
+        // #region agent log
+        try {
+            String logPath = "c:\\Desarrollo\\004 Games\\001 HytaleMods\\00 HyFactory\\HyGrip\\.cursor\\debug.log";
+            String line = "{\"timestamp\":" + System.currentTimeMillis() + ",\"location\":\"HyGripPlugin.java:setup\",\"message\":\"Plugin setup completed\",\"data\":{},\"sessionId\":\"debug-session\",\"hypothesisId\":\"H1,H3\"}\n";
+            Files.write(Paths.get(logPath), line.getBytes(StandardCharsets.UTF_8), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+        } catch (Throwable t) { /* ignore */ }
+        // #endregion
     }
 
     /**
