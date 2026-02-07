@@ -5,12 +5,12 @@
     "Description": "Description of your plugin",
     "Authors": [
         {
-            "Name": "Your Name",
-            "Email": "your.email@example.com",
-            "Url": "https://your-website.com"
+            "Name": "SamCasDev",
+            "Email": "samcastj@gmail.com",
+            "Url": ""
         }
     ],
-    "Website": "https://your-plugin-website.com",
+    "Website": "https://github.com/SamuelCastrillon/HyGrip",
     "DisabledByDefault": false,
     "IncludesAssetPack": false,
     "Dependencies": {},
